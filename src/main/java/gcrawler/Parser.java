@@ -10,6 +10,7 @@ import org.jsoup.select.Elements;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * HTML parsing utilities.
@@ -38,7 +39,7 @@ class Parser {
             results.add(elem.attr("abs:href"));
         }
 
-        return results;
+        return filterNullOrEmpty(results);
     }
 
     /**
@@ -57,7 +58,20 @@ class Parser {
             results.add(elem.attr("abs:href"));
         }
 
-        return results;
+        return filterNullOrEmpty(results);
+    }
+
+    /**
+     * Given a list of urls, removes null or empty strings.
+     *
+     * @param urls the urls to be filtered.
+     * @return the list of non-null and non-empty urls.
+     */
+    private static List<String> filterNullOrEmpty(List<String> urls) {
+        return urls
+                .stream()
+                .filter(url -> !(url == null || url.isEmpty()))
+                .collect(Collectors.toList());
     }
 
 }

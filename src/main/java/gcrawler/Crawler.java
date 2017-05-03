@@ -7,6 +7,7 @@ package gcrawler;
 import org.jsoup.nodes.Document;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -45,8 +46,7 @@ class Crawler implements Runnable {
         try {
             Logger.setup();
         } catch (IOException ex) {
-            System.err.println("error with logger setup");
-            ex.printStackTrace();
+            handleError("error with logger setup", ex);
             return; // stop now
         }
 
@@ -61,10 +61,7 @@ class Crawler implements Runnable {
                     }
                 }
             } catch (Exception ex) {
-                if (config.printErrors) {
-                    System.err.println("error with url: " + url);
-                    ex.printStackTrace();
-                }
+                handleUrlError(url, ex);
                 if (config.haltOnError) {
                     break;
                 }
@@ -74,8 +71,7 @@ class Crawler implements Runnable {
         try {
             Logger.teardown();
         } catch (IOException ex) {
-            System.err.println("error with logger teardown");
-            ex.printStackTrace();
+            handleError("error with logger teardown", ex);
         }
     }
 
@@ -107,6 +103,7 @@ class Crawler implements Runnable {
     private List<String> fetchAndParse(String url) throws Exception {
         url = config.normalizeUrls ? normalizeUrl(url) : url;
         Document doc = Fetcher.getPage(url, config.timeoutMillis);
+
         Logger.output(url, Parser.extractAssets(doc));
 
         List<String> links = Parser.extractLinks(doc);
@@ -143,7 +140,15 @@ class Crawler implements Runnable {
      * @throws Exception in case of malformed url.
      */
     private boolean checkHostDomain(String url, String host) throws Exception {
-        return new URL(url).getHost().equals(host);
+        try {
+            return new URL(url).getHost().equals(host);
+        } catch (MalformedURLException ex) {
+            handleUrlError(url, ex);
+            if (config.haltOnError) {
+                throw ex;
+            }
+            return false;
+        }
     }
 
     /**
@@ -171,6 +176,31 @@ class Crawler implements Runnable {
             return url.substring(0, url.length() - 1);
         }
         return url;
+    }
+
+    /**
+     * Prints message and exception to stderr, if logging
+     * errors is enabled.
+     *
+     * @param msg the error message to be printed.
+     * @param ex the exception to be logged.
+     */
+    private void handleError(String msg, Exception ex) {
+        if (config.printErrors) {
+            System.err.println(msg);
+            ex.printStackTrace();
+        }
+    }
+
+    /**
+     * Convenience method for printing error messages
+     * about crawled urls.
+     *
+     * @param url the url that caused the exception.
+     * @param ex the exception to be logged.
+     */
+    private void handleUrlError(String url, Exception ex) {
+        handleError("error with url: " + url, ex);
     }
 
     /**
