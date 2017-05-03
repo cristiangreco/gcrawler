@@ -4,15 +4,14 @@
 
 package gcrawler;
 
+import gcrawler.Matchers.IsEmptyList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatcher;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import java.io.IOException;
-import java.util.List;
 
 import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.never;
@@ -135,13 +134,4 @@ public class CrawlerIntegrationTests {
         return config;
     }
 
-    /**
-     * A Mockito matcher for empty lists.
-     */
-    static class IsEmptyList extends ArgumentMatcher<List<String>> {
-        @Override
-        public boolean matches(Object arg) {
-            return ((List<String>) arg).isEmpty();
-        }
-    }
 }

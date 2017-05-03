@@ -4,12 +4,13 @@
 
 package gcrawler;
 
+import gcrawler.Matchers.IsEmptyList;
+import gcrawler.Matchers.IsSingleElementList;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -18,7 +19,6 @@ import org.powermock.modules.junit4.PowerMockRunner;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
@@ -40,7 +40,7 @@ public class CrawlerTests {
                 .thenReturn(HtmlDocs.homePage())
                 .thenReturn(HtmlDocs.aboutPage());
 
-        new Crawler(newCrawlerConfig()).run();
+        new Crawler(newCrawlerConfig("https://www.example.org")).run();
 
         PowerMockito.verifyStatic();
         Logger.setup();
@@ -64,13 +64,13 @@ public class CrawlerTests {
         Mockito.when(Fetcher.getPage(anyString(), anyInt()))
                 .thenReturn(HtmlDocs.productsPage());
 
-        new Crawler(newCrawlerConfig()).run();
+        new Crawler(newCrawlerConfig("https://www.example.org/products")).run();
 
         PowerMockito.verifyStatic();
         Logger.setup();
 
         PowerMockito.verifyStatic();
-        Logger.output(anyString(), anyList());
+        Logger.output(eq("https://www.example.org/products"), argThat(new IsEmptyList()));
 
         PowerMockito.verifyStatic();
         Logger.teardown();
@@ -87,7 +87,7 @@ public class CrawlerTests {
                 .thenThrow(new IOException("network error"))
                 .thenReturn(HtmlDocs.homePage());
 
-        new Crawler(newCrawlerConfig()).run();
+        new Crawler(newCrawlerConfig("https://www.example.org/jobs")).run();
 
         PowerMockito.verifyStatic();
         Logger.setup();
@@ -110,7 +110,7 @@ public class CrawlerTests {
                 .thenThrow(new IOException("network error"))
                 .thenReturn(HtmlDocs.homePage());
 
-        Crawler.Config config = newCrawlerConfig();
+        Crawler.Config config = newCrawlerConfig("https://www.example.org/jobs");
         config.setHaltOnError(true);
         new Crawler(config).run();
 
@@ -118,7 +118,7 @@ public class CrawlerTests {
         Logger.setup();
 
         PowerMockito.verifyStatic();
-        Logger.output(anyString(), anyList());
+        Logger.output(eq("https://www.example.org/jobs"), argThat(new IsEmptyList()));
 
         PowerMockito.verifyStatic();
         Logger.teardown();
@@ -138,7 +138,7 @@ public class CrawlerTests {
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
         System.setErr(new PrintStream(stderr));
 
-        Crawler.Config config = newCrawlerConfig();
+        Crawler.Config config = newCrawlerConfig("https://www.example.org/jobs");
         config.setPrintErrors(true);
         new Crawler(config).run();
 
@@ -163,17 +163,15 @@ public class CrawlerTests {
         PowerMockito.mockStatic(Logger.class, Fetcher.class);
         Mockito.when(Fetcher.getPage(anyString(), anyInt()))
                 .thenReturn(HtmlDocs.pricingPage())
-                .thenReturn(HtmlDocs.pricingPage());
+                .thenReturn(HtmlDocs.homePage());
 
-
-        Crawler.Config config = newCrawlerConfig();
-        config.setNormalizeUrls(false);
+        Crawler.Config config = newCrawlerConfig("https://www.example.org/pricing");
         new Crawler(config).run();
 
         PowerMockito.verifyStatic();
         Logger.setup();
 
-        PowerMockito.verifyStatic(times(2));
+        PowerMockito.verifyStatic();
         Logger.output(anyString(), anyList());
 
         PowerMockito.verifyStatic();
@@ -189,7 +187,7 @@ public class CrawlerTests {
         Mockito.when(Fetcher.getPage(anyString(), anyInt()))
                 .thenAnswer(invocation -> HtmlDocs.randomLinkPage());
 
-        Crawler crawler = new Crawler(newCrawlerConfig());
+        Crawler crawler = new Crawler(newCrawlerConfig("https://www.example.org/random"));
         Thread thread = new Thread(crawler);
         thread.start();
 
@@ -233,7 +231,7 @@ public class CrawlerTests {
 
         static Document pricingPage() {
             return Jsoup.parse(
-                    "<html><head><title>Pricing</title></head><body><a href='#'>Pricing</a></body></html>",
+                    "<html><head><title>Pricing</title></head><body><a href='/pricing#'>Pricing</a></body></html>",
                     "https://www.example.org"
             );
         }
@@ -256,21 +254,11 @@ public class CrawlerTests {
     /**
      * A crawler config for www.example.org.
      */
-    private static Crawler.Config newCrawlerConfig() {
+    private static Crawler.Config newCrawlerConfig(String rootUrl) {
         Crawler.Config config = new Crawler.Config();
-        config.setRootUrl("https://www.example.org");
+        config.setRootUrl(rootUrl);
         config.setHost("www.example.org");
         return config;
-    }
-
-    /**
-     * A Mockito matcher for one-element lists.
-     */
-    static class IsSingleElementList extends ArgumentMatcher<List<String>> {
-        @Override
-        public boolean matches(Object arg) {
-            return ((List<String>) arg).size() == 1;
-        }
     }
 
 }
