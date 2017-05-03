@@ -2,6 +2,7 @@ gcrawler
 ===
 
 [![Build Status](https://travis-ci.org/cristiangreco/gcrawler.svg?branch=master)](https://travis-ci.org/cristiangreco/gcrawler)
+[![Coverage Status](https://coveralls.io/repos/github/cristiangreco/gcrawler/badge.svg?branch=master)](https://coveralls.io/github/cristiangreco/gcrawler?branch=master)
 
 gcrawler is a simple (not concurrent) web crawler written in Java.
 
