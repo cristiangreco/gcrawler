@@ -9,7 +9,10 @@ import org.jsoup.nodes.Document;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 /**
@@ -22,26 +25,26 @@ class Crawler implements Runnable {
     // Configuration instance.
     private final Config config;
 
-    // Stop signal.
-    private volatile boolean stop = false;
+    // Set of visited urls.
+    private ConcurrentMap<String, Boolean> visited = new ConcurrentHashMap<>();
+
+    // A self-reference to handle interruption.
+    private Thread self = Thread.currentThread();
 
     Crawler(Config config) {
         this.config = config;
     }
 
     /**
-     * Main loop. This is a plain BFS with graceful shutdown support
-     * and error handling.
+     * Main crawling loop. Supports graceful shutdown and error handling.
      */
     @Override
     public void run() {
         String rootUrl = config.rootUrl;
 
-        Set<String> visited = new HashSet<>();
-        List<String> queue = new ArrayList<>();
+        ForkJoinPool pool = new ForkJoinPool(config.concurrency);
 
-        visited.add(rootUrl);
-        queue.add(rootUrl);
+        visited.put(rootUrl, true);
 
         try {
             Logger.setup();
@@ -50,23 +53,19 @@ class Crawler implements Runnable {
             return; // stop now
         }
 
-        while (!(queue.isEmpty() || shouldStop())) {
-            String url = queue.remove(0);
-            try {
-                List<String> links = fetchAndParse(url);
-                for (String link : links) {
-                    if (!visited.contains(link)) {
-                        visited.add(link);
-                        queue.add(link);
-                    }
-                }
-            } catch (Exception ex) {
-                handleUrlError(url, ex);
-                if (config.haltOnError) {
-                    break;
-                }
-            }
+        try {
+            pool.submit(new CrawlingAction(rootUrl)).get();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        } catch (ExecutionException ex) {
+            handleError("task execution error", ex);
         }
+
+        pool.shutdownNow();
+
+        try {
+            pool.awaitTermination(10, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {}
 
         try {
             Logger.teardown();
@@ -76,19 +75,44 @@ class Crawler implements Runnable {
     }
 
     /**
-     * Sends a stop signal to the crawler.
+     * Crawling action. After fetching the given url,
+     * will fork other actions to crawl links.
      */
-    public void stop() {
-        stop = true;
-    }
+    private class CrawlingAction extends RecursiveAction {
 
-    /**
-     * Checks if the traversal should be stopped.
-     *
-     * @return true if should stop, false otherwise.
-     */
-    private boolean shouldStop() {
-        return stop || Thread.currentThread().isInterrupted();
+        private String url;
+
+        CrawlingAction(String url) {
+            this.url = url;
+        }
+
+        @Override
+        protected void compute() {
+            if (isCancelled()) {
+                return;
+            }
+
+            List<CrawlingAction> tasks = new ArrayList<>();
+
+            try {
+                List<String> links = fetchAndParse(url);
+                for (String link : links) {
+                    if (visited.putIfAbsent(link, true) == null) {
+                        tasks.add(new CrawlingAction(link));
+                    }
+                }
+            } catch (Exception ex) {
+                handleUrlError(url, ex);
+                if (config.haltOnError) {
+                    self.interrupt();
+                    return;
+                }
+            }
+
+            if (!tasks.isEmpty()) {
+                invokeAll(tasks);
+            }
+        }
     }
 
     /**
@@ -226,6 +250,9 @@ class Crawler implements Runnable {
         // Whether to normalize urls before access.
         private boolean normalizeUrls = true;
 
+        // Number of concurrent threads.
+        private int concurrency = Runtime.getRuntime().availableProcessors();
+
         public String getRootUrl() {
             return rootUrl;
         }
@@ -273,6 +300,15 @@ class Crawler implements Runnable {
         public void setNormalizeUrls(boolean normalizeUrls) {
             this.normalizeUrls = normalizeUrls;
         }
+
+        public int getConcurrency() {
+            return concurrency;
+        }
+
+        public void setConcurrency(int concurrency) {
+            this.concurrency = concurrency;
+        }
+
     }
 
 }

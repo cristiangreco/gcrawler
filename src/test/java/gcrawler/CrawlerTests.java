@@ -192,7 +192,8 @@ public class CrawlerTests {
         thread.start();
 
         TimeUnit.SECONDS.sleep(1);
-        crawler.stop();
+        thread.interrupt();
+        thread.join();
 
         PowerMockito.verifyStatic();
         Logger.setup();

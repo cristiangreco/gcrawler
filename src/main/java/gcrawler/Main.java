@@ -18,12 +18,10 @@ class Main {
             System.exit(1);
         }
 
-        Crawler crawler = new Crawler(config);
-
         Runtime.getRuntime().addShutdownHook(
-                new Thread(new ShutdownHook(crawler, Thread.currentThread())));
+                new Thread(new ShutdownHook(Thread.currentThread())));
 
-        crawler.run();
+        new Crawler(config).run();
     }
 
     /**
@@ -68,6 +66,9 @@ class Main {
                     case "--normalize-urls":
                         config.setNormalizeUrls(Boolean.parseBoolean(flags[i + 1]));
                         break;
+                    case "--concurrency":
+                        config.setConcurrency(Integer.parseInt(flags[i + 1]));
+                        break;
                     default:
                         throw new IllegalArgumentException("unknown option " + flags[i]);
                 }
@@ -84,17 +85,14 @@ class Main {
      * A JVM shutdown hook that sends the stop signal to the crawler.
      */
     private static class ShutdownHook implements Runnable {
-        private Crawler crawler;
         private Thread main;
 
-        public ShutdownHook(Crawler crawler, Thread main) {
-            this.crawler = crawler;
+        public ShutdownHook(Thread main) {
             this.main = main;
         }
 
         @Override
         public void run() {
-            crawler.stop();
             main.interrupt();
             try {
                 main.join();
