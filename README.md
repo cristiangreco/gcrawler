@@ -3,7 +3,9 @@ gcrawler
 
 [![Build Status](https://travis-ci.org/cristiangreco/gcrawler.svg?branch=master)](https://travis-ci.org/cristiangreco/gcrawler)
 
-gcrawler is a simple, concurrent web crawler written in Java.
+> :warning: :fire: A pull request will be merged soon that adds [concurrency support](https://github.com/cristiangreco/gcrawler/pull/1). :tada:
+
+gcrawler is a simple (not concurrent) web crawler written in Java.
 
 Given a starting url, it visits every reachable page under that domain, not crossing subdomains.
 
