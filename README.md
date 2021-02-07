@@ -86,9 +86,9 @@ gcrawler supports some command line options, see below.
 
 gcrawler is written in Java and uses the fantastic [JSoup](https://jsoup.org) library to fetch and parse HTML documents, plus the [Jackson](https://github.com/FasterXML/jackson) json serializer.
 
-The implementation is single-threaded by purpose, but it could easily be parallelized with minor changes.
+The implementation is multi-threaded, using a ForkJoinPool to spawn new crawling tasks when following links. 
 
-CPU usage is very low because the main cpu-intensive activity (DOM parsing) happens only in the main thread.
+CPU usage depends on the concurrency level, but stays generally low as the main CPU-intensive activity is DOM parsing.
 
 Memory usage is generally low, because documents are not retained after parsing and json results are emitted as soon as possible. In fact, gcrawler uses the Jackson streaming APIs to flush output as soon as documents are parsed.
 
@@ -96,7 +96,7 @@ Memory usage is generally low, because documents are not retained after parsing 
 
 gcrawler will try hard to emit a valid json to stdout.
 
-Upon task cancellation (e.g. when hitting ^C) the crawler will stop as soon as possible (i.e. at the end of the currently running task) and will emit a valid json for the pages successfully visited.
+Upon task cancellation (e.g. when hitting ^C) the crawler will stop as soon as possible (i.e. when the currently running tasks are complete) and will emit a valid json for the pages successfully visited.
 
 ## Error handling
 
@@ -122,8 +122,9 @@ flag | values | default | description
 ---- | ------ | ------- | -----------
 `--print-errors` | boolean | false | Print any exception to stderr
 `--halt-on-error` | boolean | false | Stop crawling after any error occurs
-`--normalize-urls` | boolean | true | Normalize urls before crawling (remove traling `#` and `?`) 
+`--normalize-urls` | boolean | true | Normalize urls before crawling (remove trailing `#` and `?`) 
 `--timeout-millis` | integer | 5000 | Socket timeout in milliseconds for connect and read operations
+`--concurrency` | integer | max number of processors available | Set the number of concurrent threads
 
 For example, the following:
 

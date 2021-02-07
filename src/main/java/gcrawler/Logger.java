@@ -35,7 +35,7 @@ class Logger {
      * @param url the url of the page to be printed.
      * @param assets the list of assets of the page to be printed.
      */
-    static void output(String url, List<String> assets) throws IOException {
+    static synchronized void output(String url, List<String> assets) throws IOException {
         jsonGenerator.writeStartObject();
         jsonGenerator.writeStringField("url", url);
         jsonGenerator.writeObjectField("assets", assets);
